@@ -7,7 +7,7 @@ library(xtable)
 library(tidyr)
 library(ggplot2)
 library(dplyr)
-
+library(kableExtra)
 
 ############# GET DATA ##############
 # import csvs from github repo
@@ -21,9 +21,9 @@ extra <- read_csv(paste0( my_url_git , 'raw/IMDb_movies.csv' ) )
 # remove letters
 extra2 <- extra %>% 
   mutate ( imdb_title_id = str_remove(extra$imdb_title_id, "^tt" ) ) 
-# by changing the column type, zeros diappear from the beginning
+# by changing the column type, zeros disappear from the beginning
 extra2$imdb_title_id <- as.numeric( as.character( extra2$imdb_title_id ) )
-extra2$imdb_title_id <- as.numeric( extra2$imdb_title_id )
+# extra2$imdb_title_id <- as.numeric( extra2$imdb_title_id )
 
 sapply( extra2, class )
 
@@ -39,7 +39,6 @@ col_remove1 <- c("rating", "released", "director", "writer", "cast", "poster", "
 imdb_rating_drop <- imdb_rating %>% 
   select(- one_of(col_remove1))
 
-#
 h <- imdb_rating_drop %>% filter( !complete.cases( imdb_rating_drop$year) )
 imdb_rating_drop <- imdb_rating_drop %>% filter( complete.cases( imdb_rating_drop$year ) )
 
@@ -99,8 +98,41 @@ data_join <- left_join(imdb_rating_drop2,extra2,by = c("imdbID" = "imdbID"))
 # Get rid of duplicates
 data_unique <- distinct(data_join, imdbID, .keep_all = TRUE)
 
-# data_join <- data_join %>% filter( year >= 1920) use year or number of voters?
+
+data_unique <- data_unique %>% filter( imdbVotes >= 25000)
+ggplot(data_unique,aes(genre1)) +
+  geom_bar(stat = "count")
+
+# drop more columns
+data_unique <- subset(data_unique, select=-c(production_company,budget,usa_gross_income))
+
+# delete dollar sign
+data_unique <- data_unique %>%
+  mutate ( worlwide_gross_income = str_replace_all(data_unique$worlwide_gross_income, "[^[:alnum:]]","") )
+data_unique$worlwide_gross_income <- as.numeric( as.character( data_unique$worlwide_gross_income ) )
+
+ggplot(data_unique,aes(worlwide_gross_income/10000)) +
+  geom_density()
+
+
+data_unique <- data_unique %>% transmute( 
+                                          title = title,
+                                          year = year,
+                                          genre = genre1,
+                                          metacritic = metacritic,
+                                          rating = imdbRating,
+                                          country = country,
+                                          wordwide_gross_income = worlwide_gross_income,
+                                          user_review = reviews_from_users,
+                                          critics_review = reviews_from_critics
+                                          )
+
+data_unique %>%
+  keep(is.numeric) %>% 
+  gather() %>% 
+  ggplot(aes(value)) +
+  facet_wrap(~key, scales = "free") +
+  geom_histogram()
 
 # Write to clean folder
-write.csv(share, paste0(dir, "clean/share-health.csv"), row.names = F)
-
+write.csv(data_unique, "clean/movies.csv", row.names = F)
