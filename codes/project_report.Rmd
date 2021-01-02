@@ -1,0 +1,47 @@
+---
+title: "Term project"
+author: "Karola Takács"
+date: "02/01/2021"
+output: output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r packages, include=FALSE}
+rm( list = ls())
+
+# packages to call
+library(tidyverse)
+library(stringr)
+library(xtable)
+library(tidyr)
+library(ggplot2)
+library(dplyr)
+library(kableExtra)
+```
+
+```{r get data, include=FALSE}
+# import csvs from github repo
+my_url_git <- 'https://raw.githubusercontent.com/hushva/DA2_Final_project/main/data/'
+imdb_rating <- read_csv(paste0( my_url_git , 'raw/movies_initial.csv' ) )
+extra <- read_csv(paste0( my_url_git , 'raw/IMDb_movies.csv' ) )
+```
+
+## 1. Executive Summary
+
+## 2. Introduction
+Aim of the analysis, what we can learn and possible other reports/ analysis connection.
+
+## 3. Data
+What is the used data, data quality issues, descriptive statistics and graphs and variable transformation
+
+
+```{r}
+
+```
+
+## 4. Model

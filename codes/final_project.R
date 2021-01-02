@@ -9,6 +9,7 @@ library(ggplot2)
 library(dplyr)
 library(kableExtra)
 
+
 ############# GET DATA ##############
 # import csvs from github repo
 my_url_git <- 'https://raw.githubusercontent.com/hushva/DA2_Final_project/main/data/'
@@ -25,22 +26,21 @@ extra2 <- extra %>%
 extra2$imdb_title_id <- as.numeric( as.character( extra2$imdb_title_id ) )
 # extra2$imdb_title_id <- as.numeric( extra2$imdb_title_id )
 
-sapply( extra2, class )
 
 # Check for missing observations in the most important variables
-m <- imdb_rating %>% filter( !complete.cases( imdb_rating$imdbRating ) )
+# m <- imdb_rating %>% filter( !complete.cases( imdb_rating$imdbRating ) )
 imdb_rating <- imdb_rating %>% filter( complete.cases( imdb_rating$imdbRating ) )
 
-g <- imdb_rating %>% filter( !complete.cases( imdb_rating$genre) )
+# g <- imdb_rating %>% filter( !complete.cases( imdb_rating$genre) )
 imdb_rating <- imdb_rating %>% filter( complete.cases( imdb_rating$genre ) )
 
 # Remove the columns not relevant in the analysis
 col_remove1 <- c("rating", "released", "director", "writer", "cast", "poster", "plot", "fullplot", "language", "lastupdated")
 imdb_rating_drop <- imdb_rating %>% 
-  select(- one_of(col_remove1))
+  dplyr::select(- one_of(col_remove1))
 
-h <- imdb_rating_drop %>% filter( !complete.cases( imdb_rating_drop$year) )
-imdb_rating_drop <- imdb_rating_drop %>% filter( complete.cases( imdb_rating_drop$year ) )
+# h <- imdb_rating_drop %>% filter( !complete.cases( imdb_rating_drop$year) )
+# imdb_rating_drop <- imdb_rating_drop %>% filter( complete.cases( imdb_rating_drop$year ) )
 
 # Filter for the observations that are labeled as a movie, since not interested in series
 imdb_rating_drop <- imdb_rating_drop %>% filter( type == "movie")
@@ -74,6 +74,11 @@ imdb_rating_stat <- imdb_rating_drop %>%
 xtb1 <- xtable(imdb_rating_stat, type= "latex", caption = "Table 1: Summary statistics")
 print(xtb1, comment = FALSE, include.rownames=FALSE)
 
+SummStats <- imdb_rating_drop %>%
+  keep(is.numeric) %>%
+  summary( imdb_rating_drop)
+SummStats %>% kable()
+
 rm(g,h,i,j,m)
 
 # Extract the genres and then keep only the primary one (assumption: first genre is the most typical)
@@ -86,7 +91,7 @@ rm(f)
 ggplot(imdb_rating_drop2,aes(genre1)) +
   geom_bar(stat = "count")
 
-extra2 <- subset(extra2, select=c(imdb_title_id,production_company,budget,usa_gross_income,worlwide_gross_income,reviews_from_users,reviews_from_critics))
+extra2 <- subset(extra2, select=c(imdb_title_id,production_company,duration,budget,usa_gross_income,worlwide_gross_income,reviews_from_users,reviews_from_critics))
 
 
 colnames(extra2)[colnames(extra2) == "imdb_title_id"] <- "imdbID" # Rename column
@@ -103,14 +108,14 @@ ggplot(data_unique,aes(genre1)) +
   geom_bar(stat = "count")
 
 # drop more columns
-data_unique <- subset(data_unique, select=-c(production_company,budget,usa_gross_income))
+data_unique <- subset(data_unique, select=-c(production_company,usa_gross_income))
 
 # delete dollar sign
 data_unique <- data_unique %>%
   mutate ( worlwide_gross_income = str_replace_all(data_unique$worlwide_gross_income, "[^[:alnum:]]","") )
 data_unique$worlwide_gross_income <- as.numeric( as.character( data_unique$worlwide_gross_income ) )
 
-ggplot(data_unique,aes(worlwide_gross_income/10000)) +
+ggplot(data_unique,aes(log( worlwide_gross_income/1000000))) +
   geom_density()
 
 
@@ -118,10 +123,11 @@ data_unique <- data_unique %>% transmute(
                                           title = title,
                                           year = year,
                                           genre = genre1,
+                                          duration = duration,
                                           metacritic = metacritic,
                                           rating = imdbRating,
-                                          country = country,
-                                          wordwide_gross_income = worlwide_gross_income,
+                                          votes = imdbVotes,
+                                          worldwide_gross_income = worlwide_gross_income/1000000,
                                           user_review = reviews_from_users,
                                           critics_review = reviews_from_critics
                                           )
@@ -424,8 +430,24 @@ summary( reg1 )
 reg2 <- lm_robust( rating ~ genre + lspline( wordwide_gross_income , c(10,18) ) , data = movies )
 summary( reg2 )
 
-reg3 <- lm_robust( rating ~ wordwide_gross_income, data = movies )
+reg3 <- lm_robust( rating ~ log(wordwide_gross_income), data = movies )
 summary( reg3 )
 
-reg4 <- lm_robust( rating ~ wordwide_gross_income + genre, data = movies )
+reg4 <- lm_robust( rating ~ log(wordwide_gross_income) + metacritic, data = movies )
 summary( reg4 )
+
+reg5 <- lm_robust( rating ~ log(wordwide_gross_income) + metacritic + ucratio, data = movies )
+summary( reg5 )
+
+reg6 <- lm_robust( rating ~ log(wordwide_gross_income) + metacritic * ucratio, data = movies )
+summary( reg6 )
+
+coef(reg6)
+
+reg7 <- lm_robust( rating ~ log(wordwide_gross_income) + metacritic + log(user_review), data = movies )
+summary( reg7 )
+
+reg8 <- lm_robust( rating ~ log(wordwide_gross_income) + metacritic + log(user_review) + genre, data = movies )
+summary( reg8 )
+
+coef(reg8)
