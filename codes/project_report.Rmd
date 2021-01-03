@@ -23,6 +23,7 @@ library(texreg)
 library(ggthemes)
 library(magrittr)
 library(moments)
+library(sjPlot)
 library(wesanderson)
 # import clean csv from github repo
 my_url_git <- 'https://raw.githubusercontent.com/hushva/DA2_Final_project/main/data/'
@@ -97,6 +98,70 @@ When thinking about **representativeness** I would say that IMDB ratings are onl
 
 
 ## 4. Model
+### 4.1 Setup
+
+As mentioned earlier, the outcome variable is rating, the weighted (on number of votes) average user rating on IMDB and the parameter of interest is genre, for which I created a new column - their number of occurrence in the dataset - for possible weighting.
+Before checking for potential confounder in the existing dataset, I noted several other factors which possibly can influence my outcome variable:
+
+* availability of dubbing
+
+* screening in how many countries (how worldwide the screening was) - this might relates to worldwide gross income
+
+* lot harder to acquire and watch old films since they are not digitized or simply rare
+
+* motion picture content rating system (whether a movie is rated only above 18 years of audience)
+
+* leading actor/actress in the movie is famous/well known
+
+Since I want to regress genres on ratings as the base idea, after checking these with lowess smoother (and after transforming genre into a factor), I could detect a few things:
+
+* the most common genres are Action, Comedy, Adventure, Drama and Horror.
+
+* Their ratings move on a wide range, while for instance Western has an average rating only above 7.5, similarly with Family or Film-Noir.
+
+```{r genre plot, echo=FALSE, warning = FALSE, fig.align='center',out.width = '100%', fig.height=4}
+movies$genre = as.factor(movies$genre)
+# movies$genre <- factor(df$genre, levels = movies$genre)
+
+ggplot( movies , aes(x = forcats::fct_rev(reorder(genre,genre)), y = rating), col = green ) +
+  geom_point() +
+  geom_smooth(method="loess" , formula = y ~ x )+
+  coord_flip() +
+  labs(title = "Lowess estimator for average movie rating and genre", y = "Weighted average of imdb ratings") +
+  xlab("") +
+  theme_minimal()
+```
+
+I wanted to check for a potential confounder effect between metacritic score and number of critics review since metacritic score is also based on critics reviews and scores, but there seems no pattern between the two.
+```{r, echo=FALSE, warning = FALSE,fig.align='center', out.width = '50%', fig.height=4}
+ggplot( movies , aes(x = critics_review, y = metacritic)) +
+  geom_point() +
+  geom_smooth(method="loess" , formula = y ~ x )+
+  labs(title = "Lowess estimator for number of critics reviews and metacritic rating", x = "Number of critics review", y = "Metacritic ratings") +
+  theme_minimal()
+
+```
+In this phase I also checked correlations among my X variables.The highest correlation (where correlation is above 0.7) is between user_review and votes. This is not surprising since I filtered for observations only with at least 25 thousand votes and these movies tend to have more user reviews. ucratio is also obviously highly correlated with user_review since it is a calculated variable based on user - and critics reviews. For this reason it is enough to use either the ratio or the two other variables but not both. The moderately correlated pairs are number of votes - gross income and votes - ucratio (I would guess since it incorporates user rating which is highly correlated with ucratio). 
+```{r correlation, echo=FALSE, warning = FALSE, fig.align='center', out.width = '50%', fig.height=4}
+numeric_df <- keep( genre_dist , is.numeric )
+cT <- cor(numeric_df , use = "complete.obs")
+
+# Check for highly correlated values:
+sum( cT >= 0.5 & cT != 1 ) / 2
+
+# Find the correlations which are higher than 0.8
+id_cr <- which( cT >= 0.5 & cT != 1 )
+pair_names <- expand.grid( variable.names(numeric_df) , variable.names(numeric_df) )
+
+# Get the pairs:
+high_corr <- pair_names[ id_cr , ]
+high_corr <- mutate( high_corr , corr_val = cT[ id_cr ] )
+
+knitr::kable(high_corr, caption = "Highly correlated variable pairs", "simple")
+```
+For information on interaction analysis see Appendix.
+
+### 4.2 Modelling
 
 
 
@@ -164,6 +229,14 @@ movies %>% ggplot() +
   labs(x = "Ln of number of votes",
        y = "") +
    theme_minimal()
+
+# log histogram for duration
+movies %>% ggplot() +
+  geom_histogram(aes(x = log(duration)), fill = "brown1",  alpha = 0.7) +
+  labs(x = "Ln of movie length",
+       y = "") +
+  theme_minimal()
+
 # log histogram for gross_income
 movies %>% ggplot() +
   geom_histogram(aes(x = log(worldwide_gross_income)), fill = "brown1",  alpha = 0.7) +
@@ -178,4 +251,56 @@ movies %>% ggplot() +
    theme_minimal()
 
 ```
+
+### Transformations for x variables
+#### Duration
+Log seems better
+```{r duration,  echo=FALSE, warning = FALSE, message= FALSE, out.width = '50%', fig.height=4}
+chck_sp <- function(x_var){
+  ggplot( movies , aes(x = x_var, y = rating)) +
+    geom_point() +
+    geom_smooth(method="loess" , formula = y ~ x )+
+    labs(y = "Weighted average of imdb ratings") +
+    theme_minimal()
+}
+# taking the log first
+chck_sp(  movies$duration) 
+chck_sp( log( movies$duration) )
+
+```
+
+#### Metacritic
+The only variable that shows a linear pattern with IMDB rating thus this is going to be an important variable in the regression model
+
+```{r metacritic , echo=FALSE, warning = FALSE, message= FALSE, out.width = '50%', fig.height=4}
+chck_sp( movies$metacritic)
+```
+
+#### Gross income
+```{r, echo=FALSE, warning = FALSE, message= FALSE, out.width = '50%', fig.height=4}
+chck_sp(log (movies$worldwide_gross_income))
+```
+
+#### User_review
+```{r, echo=FALSE, warning = FALSE, message= FALSE, out.width = '50%', fig.height=4}
+chck_sp(log (movies$user_review))
+```
+
+#### Critics review
+Taking the log does not really help.
+```{r, echo=FALSE, warning = FALSE, message= FALSE, out.width = '50%', fig.height=4}
+chck_sp( movies$critics_review)
+chck_sp( log(movies$critics_review) )
+```
+### Interaction
+
+The lines between the variables votes - gross income are parallel, so no interaction occures between them, while for ucratio - votes we can see the following graph:
+
+```{r, echo=FALSE, warning = FALSE, message= FALSE, out.width = '50%', fig.height=4}
+intera5 <- lm(rating ~  votes * ucratio, data = genre_dist)
+plot_model(intera5, type = "pred", terms = c("votes", "ucratio"))
+
+```
+
+The plot shows that When ucratio raises from low to medium there is a slight change (drop) in the output rating. The interaction term is significant at 1%, still these slope differences are not that extreme, almost parallel.
 

@@ -243,7 +243,9 @@ movies %>% ggplot() +
 movies %>% ggplot(aes(critics_review)) + geom_histogram() +
   scale_fill_manual(values = wes_palette("GrandBudapest2", n = 1) )
   
-
+# create ratio of user/critic_review
+genre_dist <- genre_dist %>% 
+  mutate ( ucratio = user_review/critics_review) 
 
   
 #Create statistics
@@ -278,7 +280,13 @@ votes_ln_Hist <- movies %>% ggplot() +
 
 movies %>% ggplot() +
   geom_histogram(aes(x = log(votes)), fill = "brown1",  alpha = 0.7) +
-  labs(x = "Ln of Confirmed Deaths (1.000s)",
+  labs(x = "Ln of number of votes",
+       y = "") +
+  theme_minimal()
+
+movies %>% ggplot() +
+  geom_histogram(aes(x = log(duration)), fill = "brown1",  alpha = 0.7) +
+  labs(x = "Ln of movie length",
        y = "") +
   theme_minimal()
 
@@ -327,7 +335,8 @@ chck_sp <- function(x_var){
   ggplot( movies , aes(x = x_var, y = rating)) +
     geom_point() +
     geom_smooth(method="loess" , formula = y ~ x )+
-    labs(y = "Weighted average of imdb ratings") 
+    labs(y = "Weighted average of imdb ratings") +
+    theme_minimal()
 }
 
 ### Our main interest: genre:
@@ -354,16 +363,25 @@ chck_sp(movies$genre_Documentary)
 # genre - rating boxplot
 
 movies$genre = as.factor(movies$genre)
-is.factor(movies$genre)
+movies$genre <- factor(df$genre, levels = movies$genre)
 
-ggplot( movies , aes(x = genre, y = rating) ) +
+
+chck_sp( movies$genre)
+
+ggplot( movies , aes(x = forcats::fct_rev(reorder(genre,genre)), y = rating) ) +
   geom_point() +
   geom_smooth(method="loess" , formula = y ~ x )+
-  labs(y = "Weighted average of imdb ratings")
+  coord_flip() +
+  labs(y = "Weighted average of imdb ratings") +
+  xlab("") +
+  theme_minimal()
 # we see genres with very few observations, but high rating
+
+
 
 ## critics review
 chck_sp( movies$critics_review)
+chck_sp( log(movies$critics_review) )
 # Taking the log is not helping, huge variation for lower number of critics reviews, not very linear
 # Metacritic also gives films a score out of 100, based on published critics’ reviews.Check whether these two are correlated.
 
@@ -380,7 +398,7 @@ chck_sp(log (movies$user_review))
 # check it with polynomial:
 ggplot( movies , aes(x = log(user_review), y = rating)) +
   geom_point() +
-  geom_smooth( formula = y ~ poly(x,3) , method = lm , color = 'red' )+
+  geom_smooth( formula = y ~ poly(x,2) , method = lm , color = 'red' )+
   labs(y = "Weighted average of imdb ratings")
 
 # check with PLS:
@@ -390,41 +408,55 @@ ggplot( movies , aes(x = log(user_review), y = rating)) +
 # not much difference
 
 # with the user-critics ratio:
-chck_sp(log ( movies$ucratio ) )
-
-ggplot( movies , aes(x = log(movies$ucratio), y = rating)) +
+chck_sp(log ( genre_dist$ucratio ) )
+chck_sp(genre_dist$ucratio )
+ggplot( genre_dist , aes(x = log(genre_dist$ucratio), y = rating)) +
   geom_point() +
   geom_smooth( formula = y ~ poly(x,3) , method = lm , color = 'red' )+
   labs(y = "Weighted average of imdb ratings")
 
 # check with PLS:
-ggplot( movies , aes(x = log(movies$ucratio), y = rating)) +
+ggplot( genre_dist , aes(x = log(genre_dist$ucratio), y = rating)) +
   geom_point() +
   geom_smooth( formula = y ~ lspline(x,c(-0.7,2.8)) , method = lm , color = 'red' )
 # not much difference
 
 # variable: gross income (usd)
-chck_sp(movies$wordwide_gross_income)
-chck_sp(log (movies$wordwide_gross_income))
+chck_sp(movies$worldwide_gross_income)
+chck_sp(log (movies$worldwide_gross_income))
 # needs to take log and it is most likely non-linear relationship, can check with PLS (knots: 10,18) or quadratic?
-ggplot( movies , aes(x = log(wordwide_gross_income), y = rating)) +
+ggplot( movies , aes(x = log(worldwide_gross_income), y = rating)) +
   geom_point() +
   geom_smooth( formula = y ~ poly(x,3) , method = lm , color = 'red' )
 
 # check with PLS:
-ggplot( movies , aes(x = log(wordwide_gross_income), y = rating)) +
+ggplot( movies , aes(x = log(worldwide_gross_income), y = rating)) +
   geom_point() +
-  geom_smooth( formula = y ~ lspline(x,c(10,18)) , method = lm , color = 'red' )
+  geom_smooth( formula = y ~ lspline(x,c(-5,4.8)) , method = lm , color = 'red' )
 
+# variable 
+chck_sp( movies$duration )
+chck_sp( log( movies$duration) )
+ggplot( movies , aes(x = log(duration), y = rating)) +
+  geom_point() +
+  geom_smooth( formula = y ~ poly(x,2) , method = lm , color = 'red' )
+
+ggplot( movies , aes(x = duration, y = rating)) +
+  geom_point() +
+  geom_smooth( formula = y ~ lspline(x,c(4.3,5.3)) , method = lm , color = 'red' )
 
 ## variable: metacritic
-chck_sp(movies$metacritic)
+
+ggplot( movies , aes(x = metacritic, y = rating)) +
+  geom_point() +
+  geom_smooth(method="loess" , formula = y ~ x )+
+  labs(x= "metacritic score", y = "Weighted average of imdb ratings")
 # no need to take log, pretty much linear, should be added to the model
 
 chck_sp(movies$year)
 # doesn't seem relevant, it signals, that older movies have high scores in general, less variation
 
-# Think about weightening: genres need to be witóghted as some occure only a few time, others a lot (Action)
+# Think about weightening: genres need to be weighted as some occur only a few time, others a lot (Action)
 
 
 ####
@@ -433,14 +465,14 @@ chck_sp(movies$year)
 # Check the correlations
 #
 
-numeric_df <- keep( movies , is.numeric )
+numeric_df <- keep( genre_dist , is.numeric )
 cT <- cor(numeric_df , use = "complete.obs")
 
 # Check for highly correlated values:
-sum( cT >= 0.4 & cT != 1 ) / 2
+sum( cT >= 0.5 & cT != 1 ) / 2
 
 # Find the correlations which are higher than 0.8
-id_cr <- which( cT >= 0.4 & cT != 1 )
+id_cr <- which( cT >= 0.5 & cT != 1 )
 pair_names <- expand.grid( variable.names(numeric_df) , variable.names(numeric_df) )
 
 # Get the pairs:
@@ -486,24 +518,25 @@ summ(intera1)
 plot_model(intera1, type = "pred", terms = c("user_review", "critics_review"))
 # interaction term is not significant, there might be some interaction, since the lines' slope change.
 # They are almost parallel, though.
-# When number of reviews from critics raise from low to medium there is a sight change (drop) in the output rating.
+# When number of reviews from critics raise from low to medium there is a slight change (drop) in the output rating.
 
-intera2 <- lm(rating ~ metacritic* critics_review, data = movies)
+# Votes and user review
+intera2 <- lm(rating ~ user_review * votes, data =genre_dist)
 summary(intera2)
-plot_model(intera2, type = "pred", terms = c("metacritic", "critics_review"))
+plot_model(intera2, type = "pred", terms = c("user_review", "votes"))
 # interaction term is not significant
 
-intera3 <- lm(rating ~ metacritic* user_review, data = movies)
+intera3 <- lm(rating ~ ucratio * user_review, data = genre_dist)
 summary(intera3)
-plot_model(intera3, type = "pred", terms = c("metacritic", "user_review"))
+plot_model(intera3, type = "pred", terms = c("ucratio", "user_review"))
 
-intera4 <- lm(rating ~  metacritic * wordwide_gross_income, data = movies)
+intera4 <- lm(rating ~  votes* worldwide_gross_income, data = genre_dist)
 summary(intera4)
-plot_model(intera4, type = "pred", terms = c("metacritic", "wordwide_gross_income"))
+plot_model(intera4, type = "pred", terms = c("votes", "worldwide_gross_income"))
 
-intera5 <- lm(rating ~  user_review * wordwide_gross_income, data = movies)
+intera5 <- lm(rating ~  votes * ucratio, data = genre_dist)
 summary(intera5)
-plot_model(intera5, type = "pred", terms = c("user_review", "wordwide_gross_income"))
+plot_model(intera5, type = "pred", terms = c("votes", "ucratio"))
 
 
 #####
@@ -512,45 +545,111 @@ plot_model(intera5, type = "pred", terms = c("user_review", "wordwide_gross_inco
 # Start from simple to complicated
 
 #
-# Main regression: rating = b0 + b1*genre
-#   reg1: NO controls, simple linear (factored genre)
-#   With controls:
-#   Use reg1 and control for:
-#
-#   reg2: log / PLS (knots: 10, 18) gross_income
-# 
-#   reg3: 
-#   reg4: reg3 + log (user_review)
+# main variable of interest is genre
+
+# main regression: rating = b0 + b1 * genre
+#   reg1: NO controls, simple linear
+#   reg2: NO controls, weighted for genre
+# Use reg2 and control for:
+#   reg3: log duration
+#   reg4: reg3 + log gross income
 #   reg5: reg4 + metacritic
+#   reg6: reg5 + log ucratio
 
-# create ratio of user/critic_review
-movies <- movies %>% 
-  mutate ( ucratio = user_review/critics_review) 
-
-reg1 <- lm_robust( rating ~ genre , data = movies )
+#### reg1: no control, simple linear regression
+reg1 <- lm_robust(rating ~ genre  , data = genre_dist )
 summary( reg1 )
+# R-squared:0.1542
+# Coefficient estimate is XXXX
 
-reg2 <- lm_robust( rating ~ genre + lspline( wordwide_gross_income , c(10,18) ) , data = movies )
-summary( reg2 )
+reg2 <- lm_robust(rating ~ genre  , data = genre_dist, weights = count_name )
+summary( reg1 )
+# R-squared:0.1542
+# Coefficient estimate is XXXX
 
-reg3 <- lm_robust( rating ~ log(wordwide_gross_income), data = movies )
+reg3 <- lm_robust(rating ~ genre + log(duration) , data = genre_dist, weights = count_name )
 summary( reg3 )
+# R-squared:0.2
+# Coefficient estimate is XXXX
 
-reg4 <- lm_robust( rating ~ log(wordwide_gross_income) + metacritic, data = movies )
+reg4 <- lm_robust(rating ~ genre + log(duration) + log(worldwide_gross_income), data = genre_dist, weights = count_name )
 summary( reg4 )
+# R-squared:0.2344
+# Coefficient estimate is XXXX
 
-reg5 <- lm_robust( rating ~ log(wordwide_gross_income) + metacritic + ucratio, data = movies )
+reg5 <- lm_robust(rating ~ genre + log(duration) + log(worldwide_gross_income) + metacritic, data = genre_dist, weights = count_name )
 summary( reg5 )
+# R-squared:0.5779
+# Coefficient estimate is XXXX
 
-reg6 <- lm_robust( rating ~ log(wordwide_gross_income) + metacritic * ucratio, data = movies )
+reg6 <- lm_robust(rating ~ genre + log(duration) + log(worldwide_gross_income) + metacritic + log(ucratio), data = genre_dist, weights = count_name )
 summary( reg6 )
+# R-squared:0.5851
+# Coefficient estimate is XXXX
 
-coef(reg6)
+# Extra for reg6:
+reg61 <- lm_robust(rating ~ genre + log(duration) + log(worldwide_gross_income) + metacritic + lspline (ucratio, 10.54), data = genre_dist, weights = count_name )
+summary( reg61 )
+# R-squared:0.5858
+# Coefficient estimate is XXXX
+# very small difference
 
-reg7 <- lm_robust( rating ~ log(wordwide_gross_income) + metacritic + log(user_review), data = movies )
+reg71 <- lm_robust(rating ~ genre + log(duration) + lspline(log(worldwide_gross_income),c(-5,5)) + metacritic + log(ucratio), data = genre_dist, weights = count_name )
+summary( reg71 )
+# R-squared:0.5904
+# Coefficient estimate is XXXX
+
+# what is the optimal knot pont?
+library(segmented)
+reg6_lm_seg <- lm( rating ~ ucratio , data = genre_dist )
+fit_seg_ucratio <- segmented( reg6_lm_seg , seg.Z = ~ucratio, psi = list( ucratio = 5 ) )
+summary(fit_seg_ucratio)
+# output: 10.54
+
+
+## Alternatives
+
+#### reg1: no control, simple linear regression
+reg7 <- lm_robust(rating ~ log(worldwide_gross_income)  , data = genre_dist )
 summary( reg7 )
+# R-squared:0.031
+# Coefficient estimate is 0.08
 
-reg8 <- lm_robust( rating ~ log(wordwide_gross_income) + metacritic + log(user_review) + genre, data = movies )
+reg8 <- lm_robust(rating ~ metacritic  , data = genre_dist )
 summary( reg8 )
+# R-squared:0.5543
+# Coefficient estimate is 0.04
 
-coef(reg8)
+reg9 <- lm_robust(rating ~ metacritic + log(worldwide_gross_income)  , data = genre_dist )
+summary( reg9 )
+# R-squared:0.5543
+# Coefficient estimate is 0.04
+
+reg10 <- lm_robust(rating ~ metacritic + log(worldwide_gross_income) + log(duration) , data = genre_dist, weights = count_name )
+summary( reg10 )
+# R-squared:0.5721
+# Coefficient estimate is 0.04
+
+reg11 <- lm_robust(rating ~ metacritic + log(worldwide_gross_income) + log(duration) + genre , data = genre_dist, weights = count_name )
+summary( reg11 )
+# R-squared:0.5779
+# Coefficient estimate is 0.04
+
+# Summarize findings:
+data_out <- "/Users/ilike/Documents/CEU/Courses/2020_Fall/Mandatory/DA2/Final_project/DA2_Final_project/out/"
+htmlreg( list(reg2 , reg3 , reg4 , reg5, reg6,reg71),
+         type = 'html',
+         custom.header = list("Weigthed average ratings for movies"=1:6),
+         custom.model.names = c("(1)","(2)","(3)","(4)","(5)","(6)"),
+         custom.coef.names = c("Intercept","genre(w)","log(duration)",
+                               "log(gross_income)","metacritic",
+                               "log(ucratio)"),
+         omit.coef = "Intercept|duration|gross_income|metacritic|ucratio",
+       #  reorder.coef = c(2:4,1),
+         file = paste0( data_out ,'MovieRatings_model.html'), include.ci = FALSE,
+         single.row = FALSE, siunitx = TRUE,
+         custom.gof.rows = list( "duration" = c("NO","YES","YES","YES","YES","YES"),
+                                 "gross income" = c("NO","NO","YES","YES","YES","YES"),
+                                 "metacritic" = c("NO","NO","NO","YES","YES","YES"),
+                                 "ucratio" = c("NO","NO","NO","NO","YES","YES")))
+
