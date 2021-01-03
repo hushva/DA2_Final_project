@@ -163,6 +163,8 @@ library(lspline)
 library(estimatr)
 library(texreg)
 
+
+
 my_url_git <- 'https://raw.githubusercontent.com/hushva/DA2_Final_project/main/data/'
 movies <- read_csv(paste0( my_url_git , 'clean/movies.csv' ) )
 
@@ -185,18 +187,119 @@ movies %>%
 sum1 <- summary( movies )
 knitr::kable(sum1)
 
+rating_hist <- movies %>% ggplot() +
+  geom_histogram(aes(x = rating), bins = 45, fill = "darkorange", col="darkgrey", alpha= .7) +
+  labs(title="Distribution of IMDB rating", x = "Weighted average of movie ratings") +
+  scale_x_continuous(limits=c(1,10)) +
+  theme_minimal()
+
+duration_hist <- movies %>% ggplot() +
+  geom_histogram(aes(x = duration), bins = 25, fill = "darkorange", col="darkorange", alpha= .7) +
+  # labs(title="Distribution of movie length", x = "Movie duration (min)") +
+   scale_x_continuous(limits=c(60,330)) +
+theme_minimal()
+
+movies %>% ggplot() +
+  geom_histogram(aes(x = metacritic), bins = 30, fill = "darkorange", col="darkorange", alpha= .7) +
+  labs(title="Distribution of metacritic scores", x = "Metacritic score") +
+  scale_x_continuous(limits=c(1,100)) +
+  theme_minimal()
+
+
+genre_dist <- movies %>% group_by(genre) %>% 
+  mutate(count_name = n())
+
+ggplot(genre_dist,aes(x = reorder(genre, count_name, y = count_name))) +
+    geom_bar(fill = "darkorange", color = "darkorange",stat = "count",alpha = .7, width = 0.7 ) +
+    coord_flip() +
+    labs(title="Number of various genres", x = "Genre") +
+    ylab("") +
+    theme_minimal()
+
+movies %>% ggplot() +
+  geom_histogram(aes(x = votes), bins = 45, fill = "darkorange", col="darkorange", alpha= .7) +
+  labs(title="Distribution of number of votes", x = "Votes") +
+  ylab("") +
+  theme_minimal()
+
+movies %>% ggplot() +
+  geom_histogram(aes(x = worldwide_gross_income), bins = 50, fill = "darkorange", col="darkorange", alpha= .7) +
+  labs(title="Distribution of movie gross income", x = "Gross income in millions (USD)") +
+  ylab("") +
+  theme_minimal()
+
+movies %>% ggplot() +
+  geom_histogram(aes(x = user_review), bins = 50, fill = "darkorange", col="darkorange", alpha= .7) +
+  labs(title="Distribution of user reviews", x = "Number of user reviews") +
+  ylab("") +
+  theme_minimal()
+
+movies %>% ggplot() +
+  geom_histogram(aes(x = critics_review), bins = 50,  alpha= .7) +
+  labs(title="Distribution of critics reviews", x = "Number of critics reviews") +
+  ylab("") +
+  theme_minimal()
+
+movies %>% ggplot(aes(critics_review)) + geom_histogram() +
+  scale_fill_manual(values = wes_palette("GrandBudapest2", n = 1) )
+  
+
+
+  
+#Create statistics
+ratings_stat <- movies %>% 
+  summarise(
+    Variable  = "IMDB ratings",
+    mean     = round(mean(rating), 2),
+    median   = round(median(rating),2),
+    std      = round(sd(rating), 2),
+    min      = round(min(rating),2),
+    max      = round(max(rating),2),
+    skew     = round(moments::skewness(rating), 2),
+    numObs   = sum( !is.na( rating ) ) )
+
+
+duration_stat <- movies %>% 
+  summarise(
+    Variable  = "Movie length",
+    mean     = round(mean(duration), 2),
+    median   = round(median(duration), 2),
+    std      = round(sd(duration), 2),
+    min      = round(min(duration), 2),
+    max      = round(max(duration), 2),
+    skew     = round(moments::skewness(duration), 2),
+    numObs   = sum( !is.na( duration ) ) )
+
+# create log transformation graphs
+votes_ln_Hist <- movies %>% ggplot() +
+  geom_histogram(aes(x = log(votes)), fill = "brown1",  alpha = 0.3) +
+  labs(x = "Ln of Confirmed Deaths (1.000s)",
+       y = "")
+
+movies %>% ggplot() +
+  geom_histogram(aes(x = log(votes)), fill = "brown1",  alpha = 0.7) +
+  labs(x = "Ln of Confirmed Deaths (1.000s)",
+       y = "") +
+  theme_minimal()
+
+movies %>% ggplot() +
+  geom_histogram(aes(x = log(worldwide_gross_income)), fill = "brown1",  alpha = 0.7) +
+  labs(x = "Ln of gross movie income (in millions)",
+       y = "") +
+  theme_minimal()
+
+movies %>% ggplot() +
+  geom_histogram(aes(x = log(user_review)), fill = "brown1",  alpha = 0.7) +
+  labs(x = "Ln of number of user reviews",
+       y = "") +
+theme_minimal()
+
+
 ##### Model setup
 # 
 # Outcome variable:      rating  - weighted average user rating on IMDB.
 # Parameter of interest: genre - the supposedly primary genre of the movie
 
-# How imdb rating is calculated:
-#   weighted rating (WR) = (v ÷ (v+m)) × R + (m ÷ (v+m)) × C
-# Where:
-#   R = average for the movie (mean) = (Rating)
-#   v = number of votes for the movie = (votes)
-#   m = minimum votes required to be listed in the Top 250 (currently 25,000)
-#   C = the mean vote across the whole report
 
 # Thinking about potential confounders:
 # - availability of dubbing
@@ -321,7 +424,7 @@ chck_sp(movies$metacritic)
 chck_sp(movies$year)
 # doesn't seem relevant, it signals, that older movies have high scores in general, less variation
 
-# Think about weightening: there is no natural candidate for this...
+# Think about weightening: genres need to be witóghted as some occure only a few time, others a lot (Action)
 
 
 ####

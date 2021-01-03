@@ -1,47 +1,181 @@
 ---
-title: "Term project"
+title: "Does a film's rating depend of the choice of genre?"
 author: "Karola Takács"
 date: "02/01/2021"
-output: output:
+output:
   pdf_document: default
-  html_document: default
+  prettydoc::html_pretty:
+    theme: cayman
+    highlight: github
+  html_document:
+    df_print: paged
 ---
-
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-```
-
-```{r packages, include=FALSE}
-rm( list = ls())
-
-# packages to call
+# Packages
+# rm(list=ls())
+library(WDI)
 library(tidyverse)
-library(stringr)
-library(xtable)
-library(tidyr)
-library(ggplot2)
-library(dplyr)
-library(kableExtra)
-```
-
-```{r get data, include=FALSE}
-# import csvs from github repo
+require(scales)
+library(lspline)
+library(estimatr)
+library(texreg)
+library(ggthemes)
+library(magrittr)
+library(moments)
+library(wesanderson)
+# import clean csv from github repo
 my_url_git <- 'https://raw.githubusercontent.com/hushva/DA2_Final_project/main/data/'
-imdb_rating <- read_csv(paste0( my_url_git , 'raw/movies_initial.csv' ) )
-extra <- read_csv(paste0( my_url_git , 'raw/IMDb_movies.csv' ) )
+movies <- read_csv(paste0( my_url_git , 'clean/movies.csv' ) )
 ```
 
 ## 1. Executive Summary
 
 ## 2. Introduction
-Aim of the analysis, what we can learn and possible other reports/ analysis connection.
+
+The primary interest of this analysis was whether there is a causal connection between the imdb rating of a film and it's genre. I was simply interested if certain genres are more 'likeable' by viewers or more successful from a director's point of view. My original (broad) research question was:  Is there a favorable genre to achieve higher movie rating? And also What other factors might influence the rating? However after the data cleaning part, I managed to narrow down the research question to: Does the genre choice of a director yield to certain imdb ratings for movies older than 1920? (more precisely: for movies with more than 25000 reviews). With this information at a director's hands it would be a direction what are the seemingly "more successful" genres. 
 
 ## 3. Data
 What is the used data, data quality issues, descriptive statistics and graphs and variable transformation
 
+The main variables of the joined dataset to be analyzed are the movies' title, year of making, their genre along with ratings from two different sources: imdb and Metacritic (Metacritic aggregates movie reviews from the leading critics) and also number of reviews by imdb users and critics and finally the worldwide gross income in millions. The left-hand sided variable is rating and the right-hand side variable is genre.
 
-```{r}
+To begin with I had two tables about movies both downloaded from the Kaggle webpage. They differed in record count, but after joining them based on the imdb movie ID field, I had 43605 observations. The year variable ranges from 1874 to 1995.  
+During the cleaning process I excluded all the observations with missing values for the most important variables, imdb rating and genre, but these accounted only for 2031 observations. Let me explain these two variables in more detail.
+
+* IMDB rating: all registered members of IMDB can cast their votes (good quality). For one movie a user can vote several times but then the last value is going to be updated, so basically there is 1 user for 1 film at a single time.
+
+* Genre: this is a problematic variable since it not only is categorical but for a single movie there can be more genres attached. For simplification my assumption was: the firstly listed genre is the most relevant or primary genre. Even if this is true, it really makes sense to have more categories, because there are few main categories, like action or drama and it is easy to put most of the movies into one of these which results in that these categories will be overrepresented without other genres to balance out.
+
+**Descriptive statistics** show that IMDB rating values are close to normal distribution, bit skewed to the left, signaling that he mean is well above 5, it is around 7. Similar with metacritic score, which has a better looking bell-shape, the distribution of values are wider, values are more spread on the scale of 100. IMDB Votes would make sense to transform for the analysis part as it shows right skewness, but since it is already incorporated into the IMDB rating variable it would be a bad conditioning variable in the visual analysis, so I decided not to use it. 
+
+
+```{r distribution, echo=FALSE, warning = FALSE, out.width = '50%', fig.height=4}
+
+movies %>% ggplot() +
+  geom_histogram(aes(x = rating), bins = 45, fill = "darkorange", col="darkorange", alpha=0.7) +
+  labs(title="Distribution of IMDB rating", x = "Weighted average of movie ratings") +
+  scale_x_continuous(limits=c(1,10)) +
+  ylab("") +
+  theme_minimal()
+
+genre_dist <- movies %>% group_by(genre) %>% 
+  mutate(count_name = n())
+
+ggplot(genre_dist,aes(x = reorder(genre, count_name, y = count_name))) +
+    geom_bar(fill = "darkorange", color = "darkorange",stat = "count",alpha = .7, width = 0.7 ) +
+    coord_flip() +
+    labs(title="Number of various genres", x = "Genre") +
+    ylab("") +
+    theme_minimal()
+
 
 ```
 
+```{r summary stats, echo=FALSE, warning = FALSE, out.width = '50%', fig.height=4}
+ratings_stat <- movies %>% 
+  summarise(
+    Variable  = "IMDB ratings",
+    mean     = round(mean(rating), 2),
+    median   = round(median(rating),2),
+    std      = round(sd(rating), 2),
+    min      = round(min(rating),2),
+    max      = round(max(rating),2),
+    skew     = round(moments::skewness(rating), 2),
+    numObs   = sum( !is.na( rating ) ) )
+knitr::kable(ratings_stat,caption="Summary stat of IMDB ratings")
+```
+
+The distributions (see in Appendix - Histograms) of votes, gross income and user review suggest possible log transformations. After the transformations we can see an approximately normal distribution for gross income and number of reviews, however number of votes is still not close to normal distribution. In this case it is not a concern since I argued earlier why I am not intended to use this variable.
+
+There are some **extreme values** for user_review, namely 8232, 6938 and 5392. But these are for films in the top 15, so it is possible, they might have a huge fan base and users left that many reviews. There is no need to drop these values.
+Gross income is strongly left skewed and there will be a need for log transformation in the modelling part.
+
+The number of records drop significantly after I decided to filter based on the number of votes. The baseline was 25 thousand number of votes and my rationale behind it was the fact that when creating the top 250 list, IMDB considers only movies with minimum this vote number. I think this makes the rating more credible so I decided to apply the same. In the very end I had 3624 observations to work with.
+
+When thinking about **representativeness** I would say that IMDB ratings are only reliable for the IMDB users who rated the movie, but not necessarily reliable indicators of what general movie audiences thought; it depends a lot on personal taste and preferences. Old movies are not that much represented since I would argue lot less registered users have seen those (even less if we consider the whole population). I also thought of the geographical coverage: only those can vote who have internet access (can register on the IMDB page) and also language might be an issue. We also cannot be 100% sure that all voters have seen the film and their vote is the true assessment of their liking. All in all this dataset captures information for registered users' preferences and the findings would indicate the favorite genre of these users only.
+
+
 ## 4. Model
+
+
+
+## 5. Generalization, external validity and causality
+
+## 6. Summary
+
+# Appendices
+
+### Histograms
+```{r, echo=FALSE, warning = FALSE, out.width = '50%', fig.height=4}
+
+# duration histogram
+movies %>% ggplot() +
+  geom_histogram(aes(x = duration), bins = 40, fill = "darkorange", col="darkorange", alpha=.7) +
+ labs(title="Distribution of movie length", x = "Movie duration (min)") +
+  ylab("") +
+   scale_x_continuous(limits=c(60,330)) +
+theme_minimal()
+
+# metacritic histogram
+movies %>% ggplot() +
+  geom_histogram(aes(x = metacritic), bins = 30, fill = "darkorange", col="darkorange", alpha= .7) +
+  labs(title="Distribution of metacritic scores", x = "Metacritic score") +
+  ylab("") +
+  scale_x_continuous(limits=c(1,100)) +
+  theme_minimal()
+
+# votes histogram
+movies %>% ggplot() +
+  geom_histogram(aes(x = votes), bins = 45, fill = "darkorange", col="darkorange", alpha= .7) +
+  labs(title="Distribution of number of votes", x = "Votes") +
+  ylab("") +
+  theme_minimal()
+
+# gross income histogram
+movies %>% ggplot() +
+  geom_histogram(aes(x = worldwide_gross_income), bins = 50, fill = "darkorange", col="darkorange", alpha= .7) +
+  labs(title="Distribution of movie gross income", x = "Gross income in millions (USD)") +
+  ylab("") +
+  theme_minimal()
+
+# users review histogram
+movies %>% ggplot() +
+  geom_histogram(aes(x = user_review), bins = 50, fill = "darkorange", col="darkorange", alpha= .7) +
+  labs(title="Distribution of user reviews", x = "Number of user reviews") +
+  ylab("") +
+  theme_minimal()
+
+# critics review histogram
+movies %>% ggplot() +
+  geom_histogram(aes(x = critics_review), bins = 50, fill = "darkorange", col="darkorange", alpha= .7) +
+  labs(title="Distribution of critics reviews", x = "Number of critics reviews") +
+  ylab("") +
+  theme_minimal()
+
+```
+
+
+### Possible log transformations
+```{r, echo=FALSE, warning = FALSE, message= FALSE, out.width = '50%', fig.height=4}
+# log histogram for votes
+movies %>% ggplot() +
+  geom_histogram(aes(x = log(votes)), fill = "brown1", alpha = 0.7) +
+  labs(x = "Ln of number of votes",
+       y = "") +
+   theme_minimal()
+# log histogram for gross_income
+movies %>% ggplot() +
+  geom_histogram(aes(x = log(worldwide_gross_income)), fill = "brown1",  alpha = 0.7) +
+  labs(x = "Ln of gross movie income (in millions)",
+       y = "") +
+   theme_minimal()
+# log histogram for user review
+movies %>% ggplot() +
+  geom_histogram(aes(x = log(user_review)), fill = "brown1",  alpha = 0.7) +
+  labs(x = "Ln of user review",
+       y = "") +
+   theme_minimal()
+
+```
+
