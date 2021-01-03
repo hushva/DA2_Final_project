@@ -1,5 +1,5 @@
 ---
-title: "Does a film's rating depend of the choice of genre?"
+title: "Does a movie's rating depend of the choice of genre?"
 author: "Karola Takács"
 date: "02/01/2021"
 output:
@@ -13,7 +13,7 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 # Packages
-# rm(list=ls())
+rm(list=ls())
 library(WDI)
 library(tidyverse)
 require(scales)
@@ -33,20 +33,20 @@ movies <- read_csv(paste0( my_url_git , 'clean/movies.csv' ) )
 
 ## 1. Executive Summary
 
-I was interested in the connection of weighted average IMDB ratings and the genre of movies: is there a relationship indicating that some genres are more likely to be upvoted than others? The IMDB dataset is historically extensive however might be problematic since the same user base voted for old and for new films. Nonetheless the results are based on data from 1920 till 1995 on films which have more than 25 thousand votes to retain credibility on such subjective matter as taste. The analysis suggests that topics of Family, Horror or Fantasy tend to have lower ratings so screenwriters choose more 'likeable' themes or a director might decide for a book to adapt on screen which is not in these categories. I have also found that metacritic is strongly correlated with IMDB ratings but has not much causal relationship with it.
+I was interested in the connection of weighted average IMDB ratings and the genre of movies: is there a relationship indicating that some genres are more likely to be upvoted than others? The IMDB dataset is historically extensive however might be problematic since the same user base voted for old and for new films. Nonetheless the results are based on data from 1920 till 1995 on films which have more than 25 thousand votes to retain credibility on such subjective matter as taste. The analysis suggests that topics of Family, Horror or Fantasy tend to have lower ratings so screenwriters might consider choosing more 'likeable' themes or a director might decide for a book to adapt on screen which is not in these categories. I have also found that metacritic score is strongly correlated with IMDB ratings but has not much causal relationship with it.
 
 ## 2. Introduction
 
-The primary interest of this analysis was whether there is a causal connection between the imdb rating of a film and it's genre. I was simply interested if certain genres are more 'likeable' by viewers or more successful from a director's point of view. My original (broad) research question was:  Is there a favorable genre to achieve higher movie rating? And also What other factors might influence the rating? However after the data cleaning part, I managed to narrow down the research question to: Does the genre choice of a director yield to certain imdb ratings for movies older than 1920? (more precisely: for movies with more than 25000 reviews). With this information at a director's hands it would be a direction what are the seemingly "more successful" genres. 
+The primary interest of this analysis was whether there is a causal connection between the IMDB rating of a film and it's genre. I was simply interested if certain genres are more 'likable' by viewers or more successful from a director's point of view. My original (broad) research question was: "Is there a favorable genre to achieve higher movie rating?" And also "What other factors might influence the rating?" However, after the data cleaning part, I managed to narrow down the research question to: "Does the genre choice of a director yield to certain IMDB ratings for movies older than 1920? (more precisely: for movies with more than 25000 reviews). With this information at a director's hands it would be a direction what are the seemingly "more successful" genres. 
 
 ## 3. Data
 
-The main variables of the joined dataset to be analyzed are the movies' title, year of making, their genre along with ratings from two different sources: imdb and Metacritic (Metacritic aggregates movie reviews from the leading critics) and also number of reviews by imdb users and critics and finally the worldwide gross income in millions. The left-hand sided variable is rating and the right-hand side variable is genre.
+The main variables of the joined dataset to be analyzed are the movies' title, year of making, their genre along with ratings from two different sources: IMDB and Metacritic (Metacritic aggregates movie reviews from the leading critics) and also number of reviews by IMDB users and critics and finally the worldwide gross income in USD millions. The left-hand sided variable is rating and the right-hand side variable is genre.
 
-To begin with I had two tables about movies both downloaded from the Kaggle webpage. They differed in record count, but after joining them based on the imdb movie ID field, I had 43605 observations. The year variable ranges from 1874 to 1995.  
-During the cleaning process I excluded all the observations with missing values for the most important variables, imdb rating and genre, but these accounted only for 2031 observations. Let me explain these two variables in more detail.
+To begin with I had two tables about movies both downloaded from the Kaggle webpage. They differed in record count, but after joining them based on the IMDB movie ID field, I had 43605 observations. The year variable ranges from 1874 to 1995.  
+During the cleaning process I excluded all the observations with missing values for the most important variables, IMDB rating and genre, but these accounted only for 2031 observations. Let me explain these two variables in more detail.
 
-* IMDB rating: all registered members of IMDB can cast their votes (good quality). For one movie a user can vote several times but then the last value is going to be updated, so basically there is 1 user for 1 film at a single time.
+* IMDB rating: all registered members of IMDB can cast their votes. For one movie a user can vote several times but then the last value is going to be updated, so basically there is 1 user for 1 film at a single time (good data quality).
 
 * Genre: this is a problematic variable since it not only is categorical but for a single movie there can be more genres attached. For simplification my assumption was: the firstly listed genre is the most relevant or primary genre. Even if this is true, it really makes sense to have more categories, because there are few main categories, like action or drama and it is easy to put most of the movies into one of these which results in that these categories will be overrepresented without other genres to balance out.
 
@@ -89,9 +89,9 @@ ratings_stat <- movies %>%
 knitr::kable(ratings_stat,caption="Summary stat of IMDB ratings")
 ```
 
-The distributions (see in Appendix - Histograms) of votes, gross income and user review suggest possible log transformations. After the transformations we can see an approximately normal distribution for gross income and number of reviews, however number of votes is still not close to normal distribution. In this case it is not a concern since I argued earlier why I am not intended to use this variable.
+The distributions (see in Appendix - Histograms) of votes, movie length, gross income and user review suggest possible log transformations. After the transformations we can see an approximately normal distribution for all except votes: it is still not close to normal distribution. In this case it is not a concern since I argued earlier why I am not intended to use this variable.
 
-There are some **extreme values** for user_review, namely 8232, 6938 and 5392. But these are for films in the top 15, so it is possible, they might have a huge fan base and users left that many reviews. There is no need to drop these values.
+There are some **extreme values** for *user_review*, namely 8232, 6938 and 5392. But these are for films in the top 15, so it is possible, they might have a huge fan base and users left that many reviews. There is no need to drop these values.
 Gross income is strongly left skewed and there will be a need for log transformation in the modelling part.
 
 The number of records drop significantly after I decided to filter based on the number of votes. The baseline was 25 thousand number of votes and my rationale behind it was the fact that when creating the top 250 list, IMDB considers only movies with minimum this vote number. I think this makes the rating more credible so I decided to apply the same. In the very end I had 3624 observations to work with.
@@ -195,7 +195,7 @@ An other factor is, that ratings are highly personal and subjective and it is al
 
 ## 6. Summary
 
-I have analyzed the relationship between average IMDB movie rating and genres. This was a simple level-level regression, which  was then extended with the log transformed movie length, worldwide gross income and user-critics ratio (number of user reviews divided by number of critics reviews) and metacritic score without transformation. With the help of the model now I know how various genres compared to the base category is associated with higher or lower ratings. I think it is informative for a producer or writer to know that topics of Family, Horror or Fantasy tend to have lower ratings (in this sample), while for instance the highest difference is for Romance: on average, holding all other variables constant, a movie in this category will have a higher rating by 0.52 on average, than an Action movie. The second highest category turned out to be Western. These might signal that dispite there are very few observations with this primary genre category, these films can overtake the most common categories. The second finding was that though *metacritic* is strongly correlated with movie ratings, it doe not have a strong effect on it: changing metacritic score by one, we would expect IMDB rating to change by +0.03, on average, holding all other factors constant. So could it be that users registered on IMDB are also critics who post for metacritic? Certainly.
+I have analyzed the relationship between average IMDB movie rating and genres. This was a simple level-level regression, which  was then extended with the log transformed movie length, worldwide gross income and user-critics ratio (number of user reviews divided by number of critics reviews) and metacritic score without transformation. With the help of the model now I know how various genres compared to the base category is associated with higher or lower ratings. I think it is informative for a producer or writer to know that topics of Family, Horror or Fantasy tend to have lower ratings (in this sample), while for instance the highest difference is for Romance: on average, holding all other variables constant, a movie in this category will have a higher rating by 0.52 on average, than an Action movie. The second highest category turned out to be Western. These might signal that dispite there are very few observations with this primary genre category, these films can overtake the most common categories. This could be backed up by a robustness check analysis. The second finding was that though *metacritic* is strongly correlated with movie ratings, it doe not have a strong effect on it: changing metacritic score by one, we would expect IMDB rating to change by +0.03, on average, holding all other factors constant. So could it be that users registered on IMDB are also critics who post for metacritic? Certainly.
 
 
 # Appendices
