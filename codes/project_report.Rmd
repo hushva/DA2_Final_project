@@ -33,12 +33,13 @@ movies <- read_csv(paste0( my_url_git , 'clean/movies.csv' ) )
 
 ## 1. Executive Summary
 
+I was interested in the connection of weighted average IMDB ratings and the genre of movies: is there a relationship indicating that some genres are more likely to be upvoted than others? The IMDB dataset is historically extensive however might be problematic since the same user base voted for old and for new films. Nonetheless the results are based on data from 1920 till 1995 on films which have more than 25 thousand votes to retain credibility on such subjective matter as taste. The analysis suggests that topics of Family, Horror or Fantasy tend to have lower ratings so screenwriters choose more 'likeable' themes or a director might decide for a book to adapt on screen which is not in these categories. I have also found that metacritic is strongly correlated with IMDB ratings but has not much causal relationship with it.
+
 ## 2. Introduction
 
 The primary interest of this analysis was whether there is a causal connection between the imdb rating of a film and it's genre. I was simply interested if certain genres are more 'likeable' by viewers or more successful from a director's point of view. My original (broad) research question was:  Is there a favorable genre to achieve higher movie rating? And also What other factors might influence the rating? However after the data cleaning part, I managed to narrow down the research question to: Does the genre choice of a director yield to certain imdb ratings for movies older than 1920? (more precisely: for movies with more than 25000 reviews). With this information at a director's hands it would be a direction what are the seemingly "more successful" genres. 
 
 ## 3. Data
-What is the used data, data quality issues, descriptive statistics and graphs and variable transformation
 
 The main variables of the joined dataset to be analyzed are the movies' title, year of making, their genre along with ratings from two different sources: imdb and Metacritic (Metacritic aggregates movie reviews from the leading critics) and also number of reviews by imdb users and critics and finally the worldwide gross income in millions. The left-hand sided variable is rating and the right-hand side variable is genre.
 
@@ -165,11 +166,37 @@ For an example on interaction analysis see Appendix.
 
 ### 4.2 Modelling
 
-The simple linear regression (1) was on ratings on the genre variable: Rating E = $$\beta_{0}$$ + $$\beta_{1}$$ * genre. At first glance on the model output, there are two categories - Horror and Fantasy - which have negative coefficients meaning these genres affect the ratings adversely.The reference category for this dummy variable is the Action category: the slopes doesn't seem significant, indicating no significant difference in the conditional means between the Action and other categories. For instance movies in the Adventure category received 0.4 higher rating on average than those in the Action category. I don't intend to go into more details with this model's interpretation, since its R square is really low: 0.10, similarly with models (2) and (3). So starting out with genre on the right hand side, is not very convincing. Adding duration and gross income to the model did not increase the model fit very much and the coefficients change slightly. Within the first three models the difference stems from the interpretation, since as I log transformed duration and gross income.  
+The simple linear regression (1) was on ratings on the genre variable:
+
+Rating E = $\beta_{0}$ + $\beta_{1}$genre.
+
+At first glance on the model output, there are two categories - Horror and Fantasy - which have negative coefficients meaning these genres affect the ratings adversely. The reference category for the genre dummy is the Action category which has the highest record count in the data - **good reference category** - : the slopes doesn't seem significant, indicating no significant difference in the conditional means between the Action and other categories. For instance movies in the Adventure category received 0.4 higher rating on average than those in the Action category. I don't intend to go into more details with this model's interpretation, since its R square is really low: 0.10, similarly to models (2) and (3). So starting out with genre on the right hand side, is not very convincing. Adding duration and gross income to the model did not increase the model fit very much and the coefficients changed slightly.
+Hence my choice of model is the (5):
+
+Rating E = $\beta_{0}$+$\beta_{1}$genre+$\beta_{2}$$\ln$(duration)+$\beta_{3}$$\ln$(gross_income)+$\beta_{4}$metacritic+$\beta_{5}$$\ln$(ucratio)
+
+More precicely:
+Rating E = 5.26 + 0.03*genreAdvanture*_ + 0.39*genreAnimation*_ + 0.20*genreBiography* + 0.04*genreComedy* + 0.25*genreCrime* + 0.17*genreDrama* - 0.01*genreFamily* - 0.12*genreFantasy* - 0.13*genreHorror* + 0.09*genreMusical* + 0.29*genreMistery* + 0.52*genreRomance* + 0.16*genreSci-Fi* + 0.23*genreThriller* + 0.51*genreWestern* + 1.06*ln(duration)* - 0.04*ln(gross_income)* + 0.03*meatcritic* + 0.15*ln(ucratio)*
+
+
+For this model the R square jumped to 0.61, the model is accounting for 61% of the variance in the data. On the other hand the number of observations are fewer with around 800, so the size of the data is not the same as for the other previous models which performed worse. Another issue I noted is that the coefficients are quite off compared to where they were earlier: differences are around between -0.7 and +1.3.
+The output results suggest that on average, holding all other variables constant, a movie in category Adventure will have a higher rating wit 0.03 on average, than an Action movie, so basically almost the same. Biggest differences are with the Animation, Romance and Western categories: these genres are on average receiving higher ratings by 0.39, 0.59 and 0.51 respectively. The adverse effect of Fantasy and Horror remained but Family also turned out to have a negative coefficient.
+When comparing films with the same length, increasing the duration by 10 percent, we expect the rating to go up by 0.106 percent, holding all else constant. Interestingly, it seems that a 10 percent higher USD worldwide gross income we expect the rating to decrease by 0.004, but that is very low
+
+For possible robustness check first I would focus only on movies which are categorized in one of the top 5 categories: Action, Comedy, Drama, Crime and Adventure. Another option could be of filtering for only the highly rated (let's say above 7) movies, also would try a specific decade when the films were produced (e.g. the 80s). 
+
 
 ## 5. Generalization, external validity and causality
 
+To start with, the explanatory variable *genre* is not accounting a lot for IMDB ratings alone and the model is difficult to interpret. Further control variables proved useful in explaining variation in the data, but not very convincing. It turned out that metacritic is the highest correlating variable (0.74) with rating, and when added to the model R squared increased by 0.35. If used instead of *genre* the model fit was 0.55. It is indeed an important variable, but I am not convinced that there is not a confounding variable involved - one potential variable could be *critics review* (critics review and worldwide_gross_income have a correlation of 0.4). I have listed previously some other factors I could think of influencing the movie ratings but they are hard to handle, too because they are categorical. I think the biggest con of this model is that my *genre* variable does not fully capture the information on this category. Based on this, one cannot expect to give good results if the set up is not comprehensive. The original dataset mostly contained qualitative data which also does not favor an easy model building. There was a potential right hand side variable *budget* that would make sense to incorporate: the hypothesis could be that the more money is invested in producing the film the higher it's quality and thus rating would be. Unfortunately it contained various currencies that would need to be converted to USD (I decided not to filter on observations with the USD currency because I believe that would make the analysis biased). One confounder I think could play an important role in a future analysis is whether a famous actor is playing the leading role - again, how to create the dummy can cause "headaches" (who is famous enough to be in the 'famous' category).
+I also believe that I have used a wide selection of data in terms of *year*, but I could not say I have a strong internal validity, since older films were also evaluated by registered users who did watch that particular film in this decade and we cannot know how a person living in the 20s would evaluate a film made around that time or a newer film.
+An other factor is, that ratings are highly personal and subjective and it is almost impossible to get all the angles on this matter but I would try to find solid quantitative factors indicative of these various opinions and build a model with those. From the results we can only generalize for the registered users of the IMDB webpage which is not necessarily the "single truth" for signaling how good a movie is.
+
+
 ## 6. Summary
+
+I have analyzed the relationship between average IMDB movie rating and genres. This was a simple level-level regression, which  was then extended with the log transformed movie length, worldwide gross income and user-critics ratio (number of user reviews divided by number of critics reviews) and metacritic score without transformation. With the help of the model now I know how various genres compared to the base category is associated with higher or lower ratings. I think it is informative for a producer or writer to know that topics of Family, Horror or Fantasy tend to have lower ratings (in this sample), while for instance the highest difference is for Romance: on average, holding all other variables constant, a movie in this category will have a higher rating by 0.52 on average, than an Action movie. The second highest category turned out to be Western. These might signal that dispite there are very few observations with this primary genre category, these films can overtake the most common categories. The second finding was that though *metacritic* is strongly correlated with movie ratings, it doe not have a strong effect on it: changing metacritic score by one, we would expect IMDB rating to change by +0.03, on average, holding all other factors constant. So could it be that users registered on IMDB are also critics who post for metacritic? Certainly.
+
 
 # Appendices
 
@@ -280,13 +307,13 @@ chck_sp( movies$metacritic)
 
 #### Gross income
 
-```{r, echo=FALSE, warning = FALSE, message= FALSE, out.width = '50%', fig.height=4}
+```{r, echo=FALSE, warning = FALSE, message= FALSE, out.width = '50%'}
 chck_sp(log (movies$worldwide_gross_income))
 ```
 
 #### User_review
 
-```{r, echo=FALSE, warning = FALSE, message= FALSE, out.width = '50%', fig.height=4}
+```{r, echo=FALSE, warning = FALSE, message= FALSE, out.width = '50%'}
 chck_sp(log (movies$user_review))
 ```
 
@@ -301,7 +328,7 @@ chck_sp( log(movies$critics_review) )
 
 The lines between the variables votes - gross income are parallel, so no interaction occures between them, while for ucratio - votes we can see the following graph:
 
-```{r, echo=FALSE, warning = FALSE, message= FALSE, out.width = '50%', fig.height=4}
+```{r, echo=FALSE, warning = FALSE, message= FALSE, fig.align='center', out.width = '50%', fig.height=4}
 intera5 <- lm(rating ~  votes * user_review, data = genre_dist)
 plot_model(intera5, type = "pred", terms = c("votes", "user_review"))
 
@@ -309,7 +336,6 @@ plot_model(intera5, type = "pred", terms = c("votes", "user_review"))
 
 The plot shows that when user review raises from low to medium there is a slight change (drop) in the output rating. The interaction term is significant at 1%, still these slope differences are not that extreme, almost parallel.
 
-### Model summary
 
 
 

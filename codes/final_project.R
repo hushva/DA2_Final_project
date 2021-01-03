@@ -469,10 +469,10 @@ numeric_df <- keep( genre_dist , is.numeric )
 cT <- cor(numeric_df , use = "complete.obs")
 
 # Check for highly correlated values:
-sum( cT >= 0.5 & cT != 1 ) / 2
+sum( cT >= 0.3 & cT != 1 ) / 2
 
 # Find the correlations which are higher than 0.8
-id_cr <- which( cT >= 0.5 & cT != 1 )
+id_cr <- which( cT >= 0.3 & cT != 1 )
 pair_names <- expand.grid( variable.names(numeric_df) , variable.names(numeric_df) )
 
 # Get the pairs:
@@ -583,7 +583,7 @@ summary( reg5 )
 # R-squared:0.5779
 # Coefficient estimate is XXXX
 
-reg6 <- lm_robust(rating ~ genre + log(duration) + log(worldwide_gross_income) + metacritic + log(ucratio), data = genre_dist, weights = count_name )
+reg6 <- lm_robust(rating ~ genre + log(duration) + log(worldwide_gross_income) + metacritic + log(ucratio), data = genre_dist)
 summary( reg6 )
 # R-squared:0.5851
 # Coefficient estimate is XXXX
@@ -597,6 +597,7 @@ summary( reg61 )
 
 reg71 <- lm_robust(rating ~ genre + log(duration) + lspline(log(worldwide_gross_income),c(-5,5)) + metacritic + log(ucratio), data = genre_dist, weights = count_name )
 summary( reg71 )
+coef(reg71)
 # R-squared:0.5904
 # Coefficient estimate is XXXX
 
@@ -616,7 +617,7 @@ summary( reg7 )
 # R-squared:0.031
 # Coefficient estimate is 0.08
 
-reg8 <- lm_robust(rating ~ metacritic  , data = genre_dist )
+reg8 <- lm_robust(rating ~ metacritic  , data = movies )
 summary( reg8 )
 # R-squared:0.5543
 # Coefficient estimate is 0.04
@@ -638,14 +639,14 @@ summary( reg11 )
 
 # Summarize findings:
 data_out <- "/Users/ilike/Documents/CEU/Courses/2020_Fall/Mandatory/DA2/Final_project/DA2_Final_project/out/"
-html_sum <- htmlreg( list(reg2 , reg3 , reg4 , reg5, reg6,reg71),
+html_sum <- htmlreg( list(reg2 , reg3 , reg4 , reg5, reg6, reg71),
          type = 'html',
          custom.header = list("Weigthed average ratings for movies"=1:6),
          custom.model.names = c("(1)","(2)","(3)","(4)","(5)","(6)"),
-         custom.coef.names = c("Intercept","genre(w)","log(duration)",
-                               "log(gross_income)","metacritic",
-                               "log(ucratio)"),
-         omit.coef = "Intercept|duration|gross_income|metacritic|ucratio",
+         #custom.coef.names = c("Intercept","genre(w)","log(duration)",
+          #                     "log(gross_income)","metacritic",
+          #                     "log(ucratio)"),
+         omit.coef = "Intercept|ln(duration)|ln(gross_income)|metacritic|ln(ucratio)",
        #  reorder.coef = c(2:4,1),
          file = paste0( data_out ,'MovieRatings_model.html'), include.ci = FALSE,
          single.row = FALSE, siunitx = TRUE,
