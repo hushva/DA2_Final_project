@@ -306,13 +306,13 @@ chck_sp( movies$metacritic)
 ```
 
 #### Gross income
-
+Very high heteroskedasticity, observations are centered around the middle, not very linear.
 ```{r, echo=FALSE, warning = FALSE, message= FALSE, out.width = '50%'}
 chck_sp(log (movies$worldwide_gross_income))
 ```
 
 #### User_review
-
+Observations mainly within log(user_review) 4 to 8.
 ```{r, echo=FALSE, warning = FALSE, message= FALSE, out.width = '50%'}
 chck_sp(log (movies$user_review))
 ```
