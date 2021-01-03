@@ -25,7 +25,7 @@ library(magrittr)
 library(moments)
 library(sjPlot)
 library(xfun)
-library(wesanderson)
+
 # import clean csv from github repo
 my_url_git <- 'https://raw.githubusercontent.com/hushva/DA2_Final_project/main/data/'
 movies <- read_csv(paste0( my_url_git , 'clean/movies.csv' ) )
