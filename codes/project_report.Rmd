@@ -8,7 +8,7 @@ output:
     theme: cayman
     highlight: github
   html_document:
-    df_print: paged
+    default
 ---
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -24,6 +24,7 @@ library(ggthemes)
 library(magrittr)
 library(moments)
 library(sjPlot)
+library(xfun)
 library(wesanderson)
 # import clean csv from github repo
 my_url_git <- 'https://raw.githubusercontent.com/hushva/DA2_Final_project/main/data/'
@@ -142,7 +143,7 @@ ggplot( movies , aes(x = critics_review, y = metacritic)) +
 
 ```
 In this phase I also checked correlations among my X variables.The highest correlation (where correlation is above 0.7) is between user_review and votes. This is not surprising since I filtered for observations only with at least 25 thousand votes and these movies tend to have more user reviews. ucratio is also obviously highly correlated with user_review since it is a calculated variable based on user - and critics reviews. For this reason it is enough to use either the ratio or the two other variables but not both. The moderately correlated pairs are number of votes - gross income and votes - ucratio (I would guess since it incorporates user rating which is highly correlated with ucratio). 
-```{r correlation, echo=FALSE, warning = FALSE, fig.align='center', out.width = '50%', fig.height=4}
+```{r correlation, echo=FALSE, warning = FALSE, message = FALSE,fig.align='center', out.width = '50%', fig.height=4}
 numeric_df <- keep( genre_dist , is.numeric )
 cT <- cor(numeric_df , use = "complete.obs")
 
@@ -157,13 +158,14 @@ pair_names <- expand.grid( variable.names(numeric_df) , variable.names(numeric_d
 high_corr <- pair_names[ id_cr , ]
 high_corr <- mutate( high_corr , corr_val = cT[ id_cr ] )
 
-knitr::kable(high_corr, caption = "Highly correlated variable pairs", "simple")
+knitr::kable(high_corr, caption = "Mid - Highly correlated variable pairs", "simple")
 ```
-For information on interaction analysis see Appendix.
+
+For an example on interaction analysis see Appendix.
 
 ### 4.2 Modelling
 
-
+The simple linear regression (1) was on ratings on the genre variable: Rating E = $$\beta_{0}$$ + $$\beta_{1}$$ * genre. At first glance on the model output, there are two categories - Horror and Fantasy - which have negative coefficients meaning these genres affect the ratings adversely.The reference category for this dummy variable is the Action category: the slopes doesn't seem significant, indicating no significant difference in the conditional means between the Action and other categories. For instance movies in the Adventure category received 0.4 higher rating on average than those in the Action category. I don't intend to go into more details with this model's interpretation, since its R square is really low: 0.10, similarly with models (2) and (3). So starting out with genre on the right hand side, is not very convincing. Adding duration and gross income to the model did not increase the model fit very much and the coefficients change slightly. Within the first three models the difference stems from the interpretation, since as I log transformed duration and gross income.  
 
 ## 5. Generalization, external validity and causality
 
@@ -277,11 +279,13 @@ chck_sp( movies$metacritic)
 ```
 
 #### Gross income
+
 ```{r, echo=FALSE, warning = FALSE, message= FALSE, out.width = '50%', fig.height=4}
 chck_sp(log (movies$worldwide_gross_income))
 ```
 
 #### User_review
+
 ```{r, echo=FALSE, warning = FALSE, message= FALSE, out.width = '50%', fig.height=4}
 chck_sp(log (movies$user_review))
 ```
@@ -292,15 +296,22 @@ Taking the log does not really help.
 chck_sp( movies$critics_review)
 chck_sp( log(movies$critics_review) )
 ```
+
 ### Interaction
 
 The lines between the variables votes - gross income are parallel, so no interaction occures between them, while for ucratio - votes we can see the following graph:
 
 ```{r, echo=FALSE, warning = FALSE, message= FALSE, out.width = '50%', fig.height=4}
-intera5 <- lm(rating ~  votes * ucratio, data = genre_dist)
-plot_model(intera5, type = "pred", terms = c("votes", "ucratio"))
+intera5 <- lm(rating ~  votes * user_review, data = genre_dist)
+plot_model(intera5, type = "pred", terms = c("votes", "user_review"))
 
 ```
 
-The plot shows that When ucratio raises from low to medium there is a slight change (drop) in the output rating. The interaction term is significant at 1%, still these slope differences are not that extreme, almost parallel.
+The plot shows that when user review raises from low to medium there is a slight change (drop) in the output rating. The interaction term is significant at 1%, still these slope differences are not that extreme, almost parallel.
+
+### Model summary
+
+
+
+
 

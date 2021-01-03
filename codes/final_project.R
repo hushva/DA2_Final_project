@@ -561,6 +561,7 @@ reg1 <- lm_robust(rating ~ genre  , data = genre_dist )
 summary( reg1 )
 # R-squared:0.1542
 # Coefficient estimate is XXXX
+coef
 
 reg2 <- lm_robust(rating ~ genre  , data = genre_dist, weights = count_name )
 summary( reg1 )
@@ -637,7 +638,7 @@ summary( reg11 )
 
 # Summarize findings:
 data_out <- "/Users/ilike/Documents/CEU/Courses/2020_Fall/Mandatory/DA2/Final_project/DA2_Final_project/out/"
-htmlreg( list(reg2 , reg3 , reg4 , reg5, reg6,reg71),
+html_sum <- htmlreg( list(reg2 , reg3 , reg4 , reg5, reg6,reg71),
          type = 'html',
          custom.header = list("Weigthed average ratings for movies"=1:6),
          custom.model.names = c("(1)","(2)","(3)","(4)","(5)","(6)"),
